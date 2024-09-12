@@ -5,14 +5,14 @@
 #include "unistd.h"
 #include "libnotify/notify.h"
 
-static char* BATTERY_PATH = "/sys/class/power_supply/BAT0/capacity";
-uint8_t NOTIFY_THRESHOLD = 20;
+#include "config.h"
 
+// TODO: add error wrappers
 void read_capacity(uint8_t* capacity){
     FILE *battery_capacity_fptr = fopen(BATTERY_PATH, "r");
 
     if(battery_capacity_fptr == NULL){
-        printf("Error reading file\n");
+        printf("Error reading battery file\n");
         exit(1);
     }
 
@@ -27,20 +27,24 @@ void read_capacity(uint8_t* capacity){
 int main(){
 
     uint8_t capacity;
+    notify_init ("Battery control applet");
 
     do {
         read_capacity(&capacity);
-        printf("Current battery capacity: %u\n", capacity);
-        if(capacity < NOTIFY_THRESHOLD){
-            notify_init ("Battery control applet");
+        if(capacity <= LOW_NOTIFY_THRESHOLD){
             NotifyNotification *low_battery = notify_notification_new ("Low battery", "Battery below 20%", "dialog-information");
-            notify_notification_show (Hello, NULL);
-            g_object_unref(G_OBJECT(Hello));
-            notify_uninit();
+            notify_notification_show (low_battery, NULL);
+            g_object_unref(G_OBJECT(low_battery));
         }
-        sleep(1);
+        if(capacity >= HIGH_NOTIFY_THRESHOLD){
+            NotifyNotification *high_battery = notify_notification_new ("High battery", "Battery now above 80%", "dialog-information");
+            notify_notification_show (high_battery, NULL);
+            g_object_unref(G_OBJECT(high_battery));
+        }
+        sleep(REFRESH_TIME);
     } while(true);
 
+    notify_uninit();
     return 0;
 
 }
